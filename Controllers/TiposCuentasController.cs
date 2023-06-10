@@ -4,6 +4,7 @@ using ManejoPresupuesto.Servicios;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Server.IIS.Core;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Options;
 
 namespace ManejoPresupuesto.Controllers
 {
@@ -102,15 +103,15 @@ namespace ManejoPresupuesto.Controllers
 		}
 
 		[HttpPost]
-		public async Task<IActionResult> Borrar(TipoCuenta tipoCuenta)
+		public async Task<IActionResult> BorrarTipoCuenta(int id)
 		{
 			var usuarioId = serviciosUuarios.ObtenerUsuarioId();
-			var tipoCuentaExiste = await repositorioTiposCuentas.ObtenerPorId(tipoCuenta.Id, usuarioId);
+			var tipoCuentaExiste = await repositorioTiposCuentas.ObtenerPorId(id, usuarioId);
 			if (tipoCuentaExiste is null)
 			{ 
 				return View("NoEncontrado","Index");
 			}
-			await repositorioTiposCuentas.Borrar(tipoCuenta);
+			await repositorioTiposCuentas.Borrar(id);
 			return RedirectToAction("Index");
 		}
 
@@ -128,5 +129,29 @@ namespace ManejoPresupuesto.Controllers
 
 			return Json(true);
 		}
+
+		[HttpPost]
+		public async Task<IActionResult> Ordenar([FromBody] int[] ids)
+		{
+			var usuarioId = serviciosUuarios.ObtenerUsuarioId();
+			var tiposCuentas = await repositorioTiposCuentas.Obtener(usuarioId);
+			var idsTiposCuentas = tiposCuentas.Select(x => x.Id);
+
+			var idsTiposCuentasPertenecenAlUsuario = ids.Except(idsTiposCuentas).ToList();
+
+			if (idsTiposCuentasPertenecenAlUsuario.Count > 0)
+			{
+				return Forbid();
+			}
+
+			var tiposCuentasOrdenados = ids.Select((valor, indice)=>
+					new TipoCuenta() { Id = valor , Orden = indice + 1}).AsEnumerable();
+
+			await repositorioTiposCuentas.Ordenar(tiposCuentasOrdenados);
+
+			return Ok();
+		}
+
+
 	}
 }
